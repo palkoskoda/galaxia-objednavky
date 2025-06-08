@@ -38,7 +38,9 @@ export async function GET() {
         }).all();
         
         // 3. Spracujeme dáta do finálneho formátu
-        const formattedData = dailyMenuRecords.map(record => {
+        const formattedData = dailyMenuRecords 
+            .filter(record => record.fields.Datum) 
+            .map(record => {
             const fields = record.fields as DailyMenuFields;
             const day = {
                 date: fields.Datum,

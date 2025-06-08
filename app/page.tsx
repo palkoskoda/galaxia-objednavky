@@ -54,24 +54,31 @@ export default function Home() {
         fetchData();
     }, []);
 
-    function getWeekIdentifier(d: string): string {
-        const date = new Date(d);
-        date.setHours(0, 0, 0, 0);
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(date.setDate(diff));
-        return monday.toISOString().split('T')[0];
+function getWeekIdentifier(d: string | null | undefined): string {
+       if (!d) { // <--- NOVÁ KONTROLA
+        // Ak je dátum neplatný, vrátime nejakú predvolenú hodnotu, aby aplikácia nespadla.
+        // Napríklad dnešný dátum alebo špeciálny reťazec.
+        return 'invalid-date'; 
     }
+    const date = new Date(d);
+    date.setHours(0, 0, 0, 0);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(date.setDate(diff));
+    return monday.toISOString().split('T')[0];
+}
 
-    const groupedByWeek = allData.reduce((acc, day) => {
+const groupedByWeek = allData
+        .filter(day => day.date) // Filter out any entries without a valid date
+        .reduce((acc, day) => {
         const weekId = getWeekIdentifier(day.date);
+        if (weekId === 'invalid-date') return acc; // Ignorujeme dni s neplatným dátumom
         if (!acc[weekId]) {
             acc[weekId] = [];
         }
         acc[weekId].push(day);
         return acc;
     }, {} as Record<string, FormattedDayMenu[]>);
-
     const sortedWeeks = Object.keys(groupedByWeek).sort().reverse();
 
     if (isLoading) {
