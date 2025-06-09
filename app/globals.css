@@ -212,3 +212,12 @@ body {
 .orders-table th {
     background-color: #f2f2f2;
 }
+
+/* --- Súpiska pre Admina --- */
+.summary-section {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
