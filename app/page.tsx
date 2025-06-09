@@ -32,6 +32,8 @@ export default function Home() {
         fetchData();
     }, []);
     
+// ...importy a stavy...
+
     // Funkcia na zmenu počtu kusov jedla
     const handleSelectionChange = (date: string, option: string, delta: number) => {
         setSelections(prev => {
