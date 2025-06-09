@@ -3,43 +3,49 @@ import Airtable from 'airtable';
 import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 import { checkDeadlines } from '@/utils/deadlines';
 
-// Definície typov zostávajú na globálnej úrovni
 interface Selections { [key: string]: number; }
 interface UserData { typCeny: 'Štandard' | 'Dôchodca'; }
 interface MealPrice { cenaStandard: number; cenaDochodca: number; }
 
 export async function POST(req: NextRequest) {
-    // Pridáme úplne prvý diagnostický log
-    console.log('--- /api/upsert-order function started ---');
+    console.log('--- /api/create-order function started ---');
 
     try {
-        // --- KROK 0: Lenivá inicializácia všetkého ---
         console.log('Initializing services...');
-        
-        // Airtable
-        if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
-            console.error('Airtable environment variables are not set!');
-            throw new Error('Airtable environment variables are not set!');
-        }
         const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID as string);
-
-        // Firebase Admin
         const admin = initializeFirebaseAdmin();
         const authAdmin = admin.auth();
-        
         console.log('Services initialized successfully.');
 
-        // --- 1. Overenie používateľa a ZISTENIE JEHO CENOVEJ KATEGÓRIE ---
         console.log('Verifying user token...');
         const authorization = req.headers.get('Authorization');
-        if (!authorization?.startsWith('Bearer ')) { return NextResponse.json({ error: 'Missing authorization' }, { status: 401 }); }
-        
+        if (!authorization?.startsWith('Bearer ')) {
+            return NextResponse.json({ error: 'Missing authorization' }, { status: 401 });
+        }
         const idToken = authorization.split('Bearer ')[1];
         const decodedToken = await authAdmin.verifyIdToken(idToken);
         const uid = decodedToken.uid;
         console.log(`User ${uid} verified.`);
 
-        // ... (zvyšok kódu zostáva rovnaký, len ho sem vkladám pre úplnosť) ...
+        const { date, selections }: { date: string, selections: Selections } = await req.json();
+        const menuOptions = Object.keys(selections);
+        console.log(`Received data for date: ${date} with selections:`, selections);
+        
+        // --- LOGIKA ZRUŠENIA OBJEDNÁVKY (teraz je na správnom mieste) ---
+        if (menuOptions.length === 0) {
+            console.log(`User ${uid} requested to cancel order for date: ${date}`);
+            const recordsToDelete = await base('Objednavky').select({
+                filterByFormula: `AND({FirebaseUID} = '${uid}', {DatumObjednavky} = '${date}')`
+            }).all();
+            
+            if (recordsToDelete.length > 0) {
+                const recordIds = recordsToDelete.map(r => r.id);
+                console.log(`Deleting records: ${recordIds.join(', ')}`);
+                await base('Objednavky').destroy(recordIds);
+            }
+            return NextResponse.json({ success: true, message: 'Objednávka na daný deň bola úspešne zrušená.' });
+        }
+
         console.log(`Fetching user data for UID: ${uid}`);
         const users = await base('Pouzivatelia').select({
             filterByFormula: `{FirebaseUID} = '${uid}'`,
@@ -51,14 +57,11 @@ export async function POST(req: NextRequest) {
         };
         console.log(`User price type: ${userData.typCeny}`);
 
-        const { date, selections }: { date: string, selections: Selections } = await req.json();
-        const menuOptions = Object.keys(selections);
-        
         console.log('Checking deadlines...');
         const deadlineCheck = checkDeadlines(menuOptions, date);
-        if (!deadlineCheck.canModify) { 
+        if (!deadlineCheck.canModify) {
             console.warn(`Deadline check failed: ${deadlineCheck.reason}`);
-            return NextResponse.json({ error: deadlineCheck.reason }, { status: 403 }); 
+            return NextResponse.json({ error: deadlineCheck.reason }, { status: 403 });
         }
 
         console.log('Calculating total price...');
@@ -80,29 +83,29 @@ export async function POST(req: NextRequest) {
             filterByFormula: `AND({FirebaseUID} = '${uid}', {DatumObjednavky} = '${date}')`,
             maxRecords: 1,
         }).firstPage();
-        
+
         const orderData = {
             'FirebaseUID': uid,
             'DatumObjednavky': date,
             'ObjednanePolozky': JSON.stringify(selections, null, 2),
             'CelkovaCena': totalPrice,
-            'SposobZadania': 'Web' as 'Web' | 'Manuálne',
+            'SposobZadania': 'Web' as const,
+            'Stav': 'Nová' as const
         };
 
         if (existingOrders.length > 0) {
             const orderId = existingOrders[0].id;
             console.log(`Updating existing order: ${orderId}`);
-            await base('Objednavky').update(orderId, { ...orderData, 'Stav': 'Zmenená' });
-            return NextResponse.json({ success: true, message: `Objednávka bola úspešne upravená. Celková cena: ${totalPrice.toFixed(2)} €` });
+            await base('Objednavky').update(orderId, { ...orderData, 'Stav': 'Zmenená' as const });
+            return NextResponse.json({ success: true, message: `Objednávka bola úspešne upravená.` });
         } else {
             console.log('Creating new order.');
-            await base('Objednavky').create([{ fields: { ...orderData, 'Stav': 'Nová' } }]);
-            return NextResponse.json({ success: true, message: `Objednávka bola úspešne vytvorená. Celková cena: ${totalPrice.toFixed(2)} €` });
+            await base('Objednavky').create([{ fields: orderData }]);
+            return NextResponse.json({ success: true, message: `Objednávka bola úspešne vytvorená.` });
         }
 
     } catch (error: any) {
-        // Tento blok by mal teraz zachytiť VŠETKO
-        console.error('--- CRITICAL ERROR in /api/upsert-order ---', error);
+        console.error('--- CRITICAL ERROR in /api/create-order ---', error);
         return NextResponse.json({ error: 'Nastala neočakávaná chyba na serveri.' }, { status: 500 });
     }
 }

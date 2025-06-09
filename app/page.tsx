@@ -58,14 +58,31 @@ export default function Home() {
     
     // Funkcia na odoslanie objednávky
     const handleSubmitOrder = async () => {
-        if (!user || Object.keys(selections).length === 0) {
-            alert("Košík je prázdny alebo nie ste prihlásený.");
-            return;
-        }
-        setIsSubmitting(true);
+    if (!user) {
+        alert("Prosím, prihláste sa.");
+        return;
+    }
 
-        try {
-            const token = await user.getIdToken();
+    // DÔLEŽITÁ KONTROLA: Ak je košík prázdny, nič neposielame.
+    if (Object.keys(selections).length === 0) {
+        alert("Váš nákupný košík je prázdny.");
+        return;
+    }
+
+    setIsSubmitting(true);
+
+    let successMessages: string[] = [];
+    let errorMessages: string[] = [];
+
+    try {
+        const token = await user.getIdToken();
+        
+        // Iterujeme cez dni v našom lokálnom košíku
+        for (const date in selections) {
+            const dailySelection = selections[date];
+            
+            // Log pre ladenie na strane klienta
+            console.log(`Odosielam objednávku pre ${date}:`, dailySelection);
 
             const response = await fetch('/api/create-order', {
                 method: 'POST',
@@ -73,23 +90,34 @@ export default function Home() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(selections)
+                body: JSON.stringify({ date: date, selections: dailySelection })
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Nastala chyba pri odosielaní objednávky.');
-            }
+            const result = await response.json();
 
-            alert("Objednávka bola úspešne odoslaná!");
-            setSelections({}); // Vyprázdnime košík
-        } catch (error: any) {
-            console.error("Chyba pri odosielaní objednávky:", error);
-            alert(`Chyba: ${error.message}`);
-        } finally {
-            setIsSubmitting(false);
+            if (!response.ok) {
+                errorMessages.push(`Chyba pre ${new Date(date).toLocaleDateString('sk-SK')}: ${result.error || 'Neznáma chyba'}`);
+            } else {
+                successMessages.push(result.message);
+            }
         }
-    };
+
+        if (errorMessages.length > 0) {
+            alert("Niektoré objednávky sa nepodarilo spracovať:\n" + errorMessages.join('\n'));
+        }
+        if (successMessages.length > 0) {
+             alert("Objednávka spracovaná:\n" + successMessages.join('\n'));
+        }
+        
+        setSelections({});
+
+    } catch (error: any) {
+        console.error("Chyba pri odosielaní objednávky:", error);
+        alert(`Chyba: ${error.message}`);
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
     // Funkcie na zoskupenie po týždňoch zostávajú rovnaké
     function getWeekIdentifier(d: string | null | undefined): string {
