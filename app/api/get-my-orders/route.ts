@@ -10,9 +10,11 @@ interface OrderFields extends FieldSet {
     ObjednanePolozky: string;
     Stav: string;
     DatumVytvorenia: string;
+    CelkovaCena?: number; // Pridané ako voliteľné
 }
 
 export async function GET(req: NextRequest) {
+    console.log('--- /api/get-my-orders started ---');
     try {
         // --- KROK 1: Overenie používateľa ---
         const admin = initializeFirebaseAdmin();
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
         const idToken = authorization.split('Bearer ')[1];
         const decodedToken = await authAdmin.verifyIdToken(idToken);
         const uid = decodedToken.uid;
+        console.log(`[KROK 1] User verified. UID: ${uid}`);
 
         // --- KROK 2: Nájdenie Airtable Record ID používateľa ---
         const users = await base('Pouzivatelia').select({
@@ -33,14 +36,14 @@ export async function GET(req: NextRequest) {
         }).firstPage();
 
         if (users.length === 0) {
-            // Ak používateľ neexistuje v našej databáze, nemá ani žiadne objednávky
+            console.warn(`[KROK 2 - ZLYHANIE] Používateľ s Fbuid '${uid}' nebol nájdený v tabuľke 'Pouzivatelia'. Vraciam prázdne pole.`);
             return NextResponse.json([]); // Vrátime prázdne pole
         }
         const userRecordId = users[0].id;
+        console.log(`[KROK 2 - ÚSPECH] Nájdené Airtable ID používateľa: ${userRecordId}`);
 
         // --- KROK 3: Načítanie objednávok pre dané Record ID ---
-        // Vytvoríme si pomocné formula pole v Airtable pre ľahšie filtrovanie
-        // V tabuľke 'Objednavky' vytvor pole typu Formula s názvom 'PouzivatelID' a formulou: RECORD_ID({Pouzivatel})
+        console.log(`[KROK 3] Hľadám objednávky pre PouzivatelID = '${userRecordId}'`);
         const records = await base('Objednavky')
             .select({
                 filterByFormula: `{PouzivatelID} = '${userRecordId}'`,
@@ -48,7 +51,14 @@ export async function GET(req: NextRequest) {
             })
             .all();
 
+        if (records.length === 0) {
+            console.log(`[KROK 3 - VÝSLEDOK] Pre používateľa ${userRecordId} neboli nájdené žiadne objednávky. Vraciam prázdne pole.`);
+            return NextResponse.json([]);
+        }
+        console.log(`[KROK 3 - ÚSPECH] Nájdených ${records.length} objednávok.`);
+
         // --- KROK 4: Formátovanie dát pre frontend ---
+        console.log('[KROK 4] Formátujem dáta...');
         const orders = records.map(record => {
             const fields = record.fields as OrderFields;
             return {
@@ -59,7 +69,8 @@ export async function GET(req: NextRequest) {
                 cena: fields.CelkovaCena
             };
         });
-
+        
+        console.log('Dáta úspešne naformátované. Odosielam odpoveď.');
         return NextResponse.json(orders);
 
     } catch (error: any) {
