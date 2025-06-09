@@ -110,12 +110,14 @@ export async function POST(req: NextRequest) {
     }
 } */
 
-    import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+// Pridávame pôvodné importy, aby sme otestovali, či nespôsobujú pád
+import Airtable from 'airtable';
+import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
+import { checkDeadlines } from '@/utils/deadlines';
 
 export async function POST(req: NextRequest) {
-    // Jediný log, ktorý nás teraz zaujíma.
-    console.log('--- MINIMAL API TEST: Funkcia sa úspešne spustila! ---');
+    console.log('--- TEST 1 (IMPORTS): Funkcia sa úspešne spustila s importami! ---');
 
-    // Vrátime úspešnú odpoveď.
-    return NextResponse.json({ message: 'Hello from Galaxia API!' });
-} 
+    return NextResponse.json({ message: 'Test s importami prebehol úspešne.' });
+}
