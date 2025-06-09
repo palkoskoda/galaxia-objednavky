@@ -315,3 +315,19 @@ body {
     border: 1px solid #ddd;
     border-radius: 5px;
 }
+
+.print-button {
+    margin-top: 2rem;
+    padding: 0.8rem 1.5rem;
+    background-color: #0070f3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.print-button:hover {
+    background-color: #005bb5;
+}
