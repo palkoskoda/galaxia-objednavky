@@ -115,40 +115,87 @@ import Airtable from 'airtable';
 import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 import { checkDeadlines } from '@/utils/deadlines';
 
-interface Selections { [key: string]: number; } // Pridáme si typ pre prácu s dátami
+// Definície typov
+interface Selections { [key: string]: number; }
+interface UserData { typCeny: 'Štandard' | 'Dôchodca'; }
+interface MealPrice { cenaStandard: number; cenaDochodca: number; }
 
 export async function POST(req: NextRequest) {
-    console.log('--- TEST 3 (AUTH & BODY PARSING): Začínam test. ---');
+    console.log('--- FINÁLNY TEST: Spúšťam kompletnú logiku. ---');
     try {
-        // Inicializácia služieb (už vieme, že funguje)
+        // Inicializácia a overenie (už vieme, že funguje)
         const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID as string);
         const admin = initializeFirebaseAdmin();
         const authAdmin = admin.auth();
-        
-        // --- PRIDANÁ ČASŤ ---
-        console.log('Overujem autorizačný token...');
         const authorization = req.headers.get('Authorization');
-        if (!authorization?.startsWith('Bearer ')) {
-            throw new Error('Chýbajúci alebo neplatný autorizačný token.');
-        }
+        if (!authorization?.startsWith('Bearer ')) { throw new Error('Chýbajúci token.'); }
         const idToken = authorization.split('Bearer ')[1];
         const decodedToken = await authAdmin.verifyIdToken(idToken);
         const uid = decodedToken.uid;
-        console.log(`Používateľ ${uid} úspešne overený.`);
-
-        console.log('Spracovávam telo požiadavky (req.json())...');
         const { date, selections }: { date: string, selections: Selections } = await req.json();
-        console.log(`Dáta úspešne spracované. Dátum: ${date}, Výber:`, selections);
-        // --- KONIEC PRIDANEJ ČASTI ---
+        const menuOptions = Object.keys(selections);
 
-        return NextResponse.json({ 
-            message: 'Test 3 (Auth & Body Parsing) prebehol úspešne.',
-            user: uid,
-            data: { date, selections }
-        });
+        // --- Zvyšok logiky (tu musí byť chyba) ---
+        console.log(`[KROK 1] Načítavam dáta používateľa pre UID: ${uid}`);
+        const users = await base('Pouzivatelia').select({
+            filterByFormula: `{FirebaseUID} = '${uid}'`,
+            maxRecords: 1
+        }).firstPage();
+        
+        const userData: UserData = {
+            typCeny: users.length > 0 ? (users[0].fields.TypCeny as UserData['typCeny'] || 'Štandard') : 'Štandard'
+        };
+        console.log(`[KROK 2] Cenový typ používateľa: ${userData.typCeny}. Kontrolujem uzávierky.`);
+
+        const deadlineCheck = checkDeadlines(menuOptions, date);
+        if (!deadlineCheck.canModify) {
+            return NextResponse.json({ error: deadlineCheck.reason }, { status: 403 });
+        }
+        console.log('[KROK 3] Uzávierky v poriadku. Počítam cenu.');
+
+        // ... (výpočet ceny, ten by mal byť v poriadku) ...
+        const hardcodedPrices: { [key: string]: MealPrice } = {
+            'A': { cenaStandard: 6.5, cenaDochodca: 5.8 }, 'B': { cenaStandard: 6.5, cenaDochodca: 5.8 }, 'C': { cenaStandard: 6.2, cenaDochodca: 5.5 }, 'D': { cenaStandard: 7.0, cenaDochodca: 6.2 }, 'Polievka': { cenaStandard: 1.5, cenaDochodca: 1.2 },
+        };
+        let totalPrice = 0;
+        for (const option in selections) {
+            const priceInfo = hardcodedPrices[option];
+            if (priceInfo) {
+                const price = userData.typCeny === 'Dôchodca' ? priceInfo.cenaDochodca : priceInfo.cenaStandard;
+                totalPrice += price * selections[option];
+            }
+        }
+
+        console.log(`[KROK 4] Cena vypočítaná: ${totalPrice}. Hľadám existujúce objednávky.`);
+        const existingOrders = await base('Objednavky').select({
+            filterByFormula: `AND({FirebaseUID} = '${uid}', {DatumObjednavky} = '${date}')`,
+            maxRecords: 1,
+        }).firstPage();
+        
+        console.log(`[KROK 5] Nájdených ${existingOrders.length} existujúcich objednávok. Pripravujem dáta na zápis.`);
+        const orderData = {
+            'FirebaseUID': uid,
+            'DatumObjednavky': date,
+            'ObjednanePolozky': JSON.stringify(selections, null, 2),
+            'CelkovaCena': totalPrice,
+            'SposobZadania': 'Web' as const,
+            'Stav': 'Nová' as const
+        };
+
+        if (existingOrders.length > 0) {
+            const orderId = existingOrders[0].id;
+            console.log(`[KROK 6 - UPDATE] Aktualizujem objednávku ${orderId}.`);
+            await base('Objednavky').update(orderId, { ...orderData, 'Stav': 'Zmenená' as const });
+            return NextResponse.json({ success: true, message: `Objednávka bola úspešne upravená.` });
+        } else {
+            console.log('[KROK 6 - CREATE] Vytváram novú objednávku.');
+            await base('Objednavky').create([{ fields: orderData }]);
+            return NextResponse.json({ success: true, message: `Objednávka bola úspešne vytvorená.` });
+        }
 
     } catch (error: any) {
-        console.error('--- KRITICKÁ CHYBA POČAS TESTU 3 ---', error);
-        return NextResponse.json({ error: 'Chyba počas overovania používateľa alebo spracovania dát.' }, { status: 500 });
+        // Teraz tu na 100% uvidíme chybu!
+        console.error('--- KRITICKÁ CHYBA VO FINÁLNOM TESTE ---', error);
+        return NextResponse.json({ error: 'Chyba pri komunikácii s databázou.' }, { status: 500 });
     }
 }
