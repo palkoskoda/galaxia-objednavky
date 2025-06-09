@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
+/* import { NextResponse, NextRequest } from 'next/server';
 import Airtable from 'airtable';
 import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 import { checkDeadlines } from '@/utils/deadlines';
@@ -108,4 +108,14 @@ export async function POST(req: NextRequest) {
         console.error('--- CRITICAL ERROR in /api/create-order ---', error);
         return NextResponse.json({ error: 'Nastala neočakávaná chyba na serveri.' }, { status: 500 });
     }
-}
+} */
+
+    import { NextResponse, NextRequest } from 'next/server';
+
+export async function POST(req: NextRequest) {
+    // Jediný log, ktorý nás teraz zaujíma.
+    console.log('--- MINIMAL API TEST: Funkcia sa úspešne spustila! ---');
+
+    // Vrátime úspešnú odpoveď.
+    return NextResponse.json({ message: 'Hello from Galaxia API!' });
+} 
