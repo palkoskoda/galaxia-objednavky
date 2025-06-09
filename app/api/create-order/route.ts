@@ -7,7 +7,7 @@ import { checkDeadlines } from '@/utils/deadlines';
 
 // --- KONŠTANTA PRE NÁZOV POĽA ---
 // Ak sa stĺpec v Airtable volá inak, zmeň to iba tu.
-const UID_FIELD_NAME = 'FirebaseUID';
+const UID_FIELD_NAME = 'firebaseuid';
 
 export async function POST(req: NextRequest) {
     try {
