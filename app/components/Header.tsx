@@ -1,9 +1,8 @@
 "use client";
 
 import Link from 'next/link';
-// TODO: Update the import path below if your AuthContext is located elsewhere
 import { useAuth } from '../context/AuthContext';
-import { auth } from '@/lib/firebase';
+import { auth } from '../../lib/firebase';
 import { signOut } from 'firebase/auth';
 
 export default function Header() {
@@ -12,7 +11,6 @@ export default function Header() {
     const handleLogout = async () => {
         try {
             await signOut(auth);
-            // Presmerovanie nie je nutné, onAuthStateChanged sa postará o aktualizáciu UI
         } catch (error) {
             console.error('Chyba pri odhlasovaní:', error);
         }
@@ -28,6 +26,7 @@ export default function Header() {
                     <div>Načítavam...</div>
                 ) : user ? (
                     <>
+                        <Link href="/moje-objednavky">Moje Objednávky</Link>
                         <span>Vitaj, {user.email}</span>
                         <button onClick={handleLogout} className="logout-button">Odhlásiť sa</button>
                     </>

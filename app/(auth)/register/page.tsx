@@ -1,5 +1,6 @@
 "use client";
 
+import { User } from 'firebase/auth'; // Importujeme User pre typovanie, ak je potrebné
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';

@@ -1,23 +1,24 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useAuth } from './context/AuthContext'; // 1. Importujeme useAuth
+import { useAuth } from './context/AuthContext';
+import { User } from 'firebase/auth'; // Potrebné pre typovú bezpečnosť objektu 'user'
 
-// Definície typov... (interface Soup, Meal, FormattedDayMenu)
+// Definície typov...
 interface Soup { name: string; allergens: string; }
 interface Meal { option: string; is_fit: boolean; name:string; details: string | null; weight: string; allergens: string; }
 interface FormattedDayMenu { date: string; day_of_week: string; source_file: string; soup: Soup; meals: Meal[]; daily_extra: any; user_choice: string[] | null; }
 
-// 2. Definujeme typ pre náš "košík"
-// Štruktúra: { '2025-06-10': { 'A': 2, 'B': 1 }, '2025-06-11': { 'C': 1 } }
+// Typ pre náš "košík"
 type Selections = Record<string, Record<string, number>>;
 
 export default function Home() {
     const { user } = useAuth(); // Získame info o prihlásenom používateľovi
     const [allData, setAllData] = useState<FormattedDayMenu[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isSubmitting, setIsSubmitting] = useState(false); // Stav na zamedzenie dvojkliku
     const [error, setError] = useState<string | null>(null);
-    const [selections, setSelections] = useState<Selections>({}); // 3. Stav pre uloženie výberu
+    const [selections, setSelections] = useState<Selections>({}); // Stav pre uloženie výberu
 
     useEffect(() => {
         const fetchData = async () => {
@@ -31,10 +32,10 @@ export default function Home() {
         fetchData();
     }, []);
     
-    // 4. Funkcia na zmenu počtu kusov jedla
+    // Funkcia na zmenu počtu kusov jedla
     const handleSelectionChange = (date: string, option: string, delta: number) => {
         setSelections(prev => {
-            const newSelections = { ...prev };
+            const newSelections = JSON.parse(JSON.stringify(prev)); // Hlboká kópia pre istotu
             if (!newSelections[date]) {
                 newSelections[date] = {};
             }
@@ -44,25 +45,48 @@ export default function Home() {
             if (newQuantity > 0) {
                 newSelections[date][option] = newQuantity;
             } else {
-                delete newSelections[date][option]; // Odstránime, ak je počet 0
+                delete newSelections[date][option];
                 if (Object.keys(newSelections[date]).length === 0) {
-                    delete newSelections[date]; // Odstránime aj deň, ak je prázdny
+                    delete newSelections[date];
                 }
             }
             return newSelections;
         });
     };
     
-    // 5. Funkcia na odoslanie objednávky (zatiaľ len vypíše do konzoly)
-    const handleSubmitOrder = () => {
-        if (Object.keys(selections).length === 0) {
-            alert("Váš košík je prázdny!");
+    // Funkcia na odoslanie objednávky
+    const handleSubmitOrder = async () => {
+        if (!user || Object.keys(selections).length === 0) {
+            alert("Košík je prázdny alebo nie ste prihlásený.");
             return;
         }
-        console.log("Odosielaná objednávka:", selections);
-        // Tu v ďalšom kroku budeme volať API endpoint /api/create-order
-        alert("Objednávka odoslaná (zatiaľ len v konzole)!");
-        setSelections({}); // Vyprázdnime košík po odoslaní
+        setIsSubmitting(true);
+
+        try {
+            const token = await user.getIdToken();
+
+            const response = await fetch('/api/create-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(selections)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Nastala chyba pri odosielaní objednávky.');
+            }
+
+            alert("Objednávka bola úspešne odoslaná!");
+            setSelections({}); // Vyprázdnime košík
+        } catch (error: any) {
+            console.error("Chyba pri odosielaní objednávky:", error);
+            alert(`Chyba: ${error.message}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Funkcie na zoskupenie po týždňoch zostávajú rovnaké
@@ -91,13 +115,18 @@ export default function Home() {
 
     return (
         <main className="container">
-            {/* Tlačidlo na odoslanie objednávky, viditeľné len ak je user prihlásený a má niečo vybrané */}
             {user && Object.keys(selections).length > 0 && (
                 <div className="order-summary">
-                    <button onClick={handleSubmitOrder} className="submit-order-button">Odoslať Objednávku</button>
+                    <button 
+                        onClick={handleSubmitOrder} 
+                        className="submit-order-button"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? 'Odosielam...' : 'Odoslať Objednávku'}
+                    </button>
                 </div>
             )}
-
+            
             {sortedWeeks.map(weekId => {
                 const weekData = groupedByWeek[weekId];
                 const weekStartDate = new Date(weekId);
@@ -117,10 +146,9 @@ export default function Home() {
                                             <div className="name">{meal.name}</div>
                                             {meal.details && <div className="details">({meal.details})</div>}
                                         </div>
-                                        {/* 6. Ovládacie prvky - ZOBRAZIA SA LEN PRE PRIHLÁSENÝCH */}
                                         {user && (
                                             <div className="quantity-selector">
-                                                <button onClick={() => handleSelectionChange(day.date, meal.option, -1)}>-</button>
+                                                <button onClick={() => handleSelectionChange(day.date, meal.option, -1)} disabled={!selections[day.date]?.[meal.option]}>-</button>
                                                 <span>{selections[day.date]?.[meal.option] || 0}</span>
                                                 <button onClick={() => handleSelectionChange(day.date, meal.option, 1)}>+</button>
                                             </div>

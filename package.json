@@ -12,6 +12,7 @@
     "@types/airtable": "^0.10.0",
     "airtable": "^0.12.2",
     "firebase": "^11.9.0",
+    "firebase-admin": "^13.4.0",
     "next": "15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

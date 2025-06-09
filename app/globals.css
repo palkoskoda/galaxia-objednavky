@@ -196,3 +196,19 @@ body {
 .submit-order-button:hover {
     background-color: #218838;
 }
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2rem;
+}
+
+.orders-table th, .orders-table td {
+    border: 1px solid #ddd;
+    padding: 0.8rem;
+    text-align: left;
+}
+
+.orders-table th {
+    background-color: #f2f2f2;
+}
