@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
         // --- Zvyšok logiky (tu musí byť chyba) ---
         console.log(`[KROK 1] Načítavam dáta používateľa pre UID: ${uid}`);
 const users = await base('Pouzivatelia').select({
-  filterByFormula: `({Firebase UID} = "${uid}")`, // presný názov + úvodzovky
+  filterByFormula: `({firebaseuid} = "${uid}")`, // presný názov + úvodzovky
   maxRecords: 1
 }).firstPage();
         
