@@ -1,18 +1,22 @@
 import admin from 'firebase-admin';
 
-// Dôležité: Tieto premenné prostredia musia byť nastavené vo Verceli.
-// Private key musí byť v špeciálnom formáte - často je potrebné nahradiť '\n' za '\\n'
-// pri vkladaní do Vercel UI, ale Vercel to už dnes vie spracovať aj priamo.
+// Funkcia na zabezpečenie, že sa Firebase inicializuje len raz.
+function initializeFirebaseAdmin() {
+    if (!admin.apps.length) {
+        // Skontrolujeme, či premenná prostredia existuje, aby sme dostali lepšiu chybovú hlášku
+        if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment variables.');
+        }
 
-if (!admin.apps.length) {
-    const serviceAccount = JSON.parse(
-        process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
-    );
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log("Firebase Admin SDK initialized.");
+    }
+    return admin;
 }
 
-const authAdmin = admin.auth();
-export { authAdmin };
+// Exportujeme funkciu, nie priamo inicializovanú inštanciu
+export { initializeFirebaseAdmin };
