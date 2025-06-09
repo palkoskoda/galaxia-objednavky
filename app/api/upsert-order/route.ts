@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
             maxRecords: 1,
         }).firstPage();
 
+    
 
         const orderData = {
             'Pouzivatel': [userData.id], // Kľúčová oprava: Posielame pole s Record ID
@@ -87,7 +88,8 @@ export async function POST(req: NextRequest) {
         }
 
     } catch (error: any) {
-        console.error('--- DETAILED ERROR in /api/upsert-order ---', error);
+        console.error('--- DETAILED ERROR in /api/upsert-order', error);
         return NextResponse.json({ error: 'Nastala neočakávaná chyba na serveri.' }, { status: 500 });
     }
+
 }
