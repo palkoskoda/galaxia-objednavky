@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         
         // --- KROK 3: Príprava dát pre zápis ---
         const orderData = {
-            'Pouzivatel': [userInfo.id], // Správny formát: pole s Record ID
+            'PouzivatelID': [userInfo.id], // Správny formát: pole s Record ID
             'DatumObjednavky': date,
             'ObjednanePolozky': JSON.stringify(selections, null, 2),
             // ... (CelkovaCena, SposobZadania)

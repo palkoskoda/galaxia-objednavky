@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+// Nový typ pre objednávku, ktorý zodpovedá API
 interface Order {
     id: string;
-    Datum: string;
-    Menu: string;
-    Pocet: number;
-    Stav: string;
+    datum: string;
+    objednavka: Record<string, number>;
+    stav: string;
+    cena: number;
 }
 
 export default function MyOrdersPage() {
@@ -75,18 +76,22 @@ export default function MyOrdersPage() {
                     <thead>
                         <tr>
                             <th>Dátum</th>
-                            <th>Menu</th>
-                            <th>Počet</th>
+                            <th>Objednávka</th>
+                            <th>Cena</th>
                             <th>Stav</th>
                         </tr>
                     </thead>
                     <tbody>
                         {orders.map(order => (
                             <tr key={order.id}>
-                                <td>{new Date(order.Datum).toLocaleDateString('sk-SK')}</td>
-                                <td>Menu {order.Menu}</td>
-                                <td>{order.Pocet}</td>
-                                <td>{order.Stav}</td>
+                                <td>{new Date(order.datum).toLocaleDateString('sk-SK')}</td>
+                                <td>
+                                    {Object.entries(order.objednavka)
+                                        .map(([meal, count]) => `${meal}: ${count}ks`)
+                                        .join(', ')}
+                                </td>
+                                <td>{order.cena?.toFixed(2)} €</td>
+                                <td>{order.stav}</td>
                             </tr>
                         ))}
                     </tbody>
