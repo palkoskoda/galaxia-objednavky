@@ -111,13 +111,25 @@ export async function POST(req: NextRequest) {
 } */
 
 import { NextResponse, NextRequest } from 'next/server';
-// Pridávame pôvodné importy, aby sme otestovali, či nespôsobujú pád
 import Airtable from 'airtable';
 import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 import { checkDeadlines } from '@/utils/deadlines';
 
 export async function POST(req: NextRequest) {
-    console.log('--- TEST 1 (IMPORTS): Funkcia sa úspešne spustila s importami! ---');
+    console.log('--- TEST 2 (INITIALIZATION): Začínam test inicializácie. ---');
+    try {
+        console.log('Inicializujem Airtable...');
+        const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID as string);
+        
+        console.log('Inicializujem Firebase Admin...');
+        const admin = initializeFirebaseAdmin();
+        const authAdmin = admin.auth();
+        
+        console.log('Všetky služby úspešne inicializované!');
+        return NextResponse.json({ message: 'Test inicializácie služieb prebehol úspešne.' });
 
-    return NextResponse.json({ message: 'Test s importami prebehol úspešne.' });
+    } catch (error: any) {
+        console.error('--- KRITICKÁ CHYBA POČAS TESTU 2 (INITIALIZATION) ---', error);
+        return NextResponse.json({ error: 'Chyba počas inicializácie služieb.' }, { status: 500 });
+    }
 }
