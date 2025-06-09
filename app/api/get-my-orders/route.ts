@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
         const records = await base('Objednavky')
             .select({
                 filterByFormula: `{firebaseuid} = '${uid}'`,
-                sort: [{ field: 'Datum', direction: 'desc' }],
+                sort: [{ field: 'DatumObjednavky', direction: 'desc' }],
             })
             .all();
         
