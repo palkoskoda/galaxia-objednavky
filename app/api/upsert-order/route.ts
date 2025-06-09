@@ -28,18 +28,12 @@ export async function POST(req: NextRequest) {
         }).firstPage();
 
         // Ak používateľ neexistuje, priradíme mu štandardnú cenu.
-        const userData: UserData = {
-            typCeny: users.length > 0 ? (users[0].fields.TypCeny as UserData['typCeny'] || 'Štandard') : 'Štandard'
+        
+        const userData = {
+            id: users[0].id,
+            typCeny: users[0].fields.TypCeny as UserData['typCeny'] || 'Štandard'
         };
 
-        // --- 2. Spracovanie a validácia požiadavky ---
-        // (Táto časť sa nemení)
-
-        // --- 3. Kontrola uzávierok ---
-        // (Táto časť sa nemení)
-        
-        // --- 4. Výpočet celkovej sumy ---
-        // (Táto časť sa nemení)
 
         const { date, selections }: { date: string, selections: Selections } = await req.json();
         const menuOptions = Object.keys(selections);
@@ -65,9 +59,10 @@ export async function POST(req: NextRequest) {
             filterByFormula: `AND({FirebaseUID} = '${uid}', {DatumObjednavky} = '${date}')`,
             maxRecords: 1,
         }).firstPage();
-        
+
+
         const orderData = {
-            'FirebaseUID': uid, // Ukladáme priamo UID
+            'Pouzivatel': [userData.id], // Kľúčová oprava: Posielame pole s Record ID
             'DatumObjednavky': date,
             'ObjednanePolozky': JSON.stringify(selections, null, 2),
             'CelkovaCena': totalPrice,
