@@ -115,21 +115,40 @@ import Airtable from 'airtable';
 import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 import { checkDeadlines } from '@/utils/deadlines';
 
+interface Selections { [key: string]: number; } // Pridáme si typ pre prácu s dátami
+
 export async function POST(req: NextRequest) {
-    console.log('--- TEST 2 (INITIALIZATION): Začínam test inicializácie. ---');
+    console.log('--- TEST 3 (AUTH & BODY PARSING): Začínam test. ---');
     try {
-        console.log('Inicializujem Airtable...');
+        // Inicializácia služieb (už vieme, že funguje)
         const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID as string);
-        
-        console.log('Inicializujem Firebase Admin...');
         const admin = initializeFirebaseAdmin();
         const authAdmin = admin.auth();
         
-        console.log('Všetky služby úspešne inicializované!');
-        return NextResponse.json({ message: 'Test inicializácie služieb prebehol úspešne.' });
+        // --- PRIDANÁ ČASŤ ---
+        console.log('Overujem autorizačný token...');
+        const authorization = req.headers.get('Authorization');
+        if (!authorization?.startsWith('Bearer ')) {
+            throw new Error('Chýbajúci alebo neplatný autorizačný token.');
+        }
+        const idToken = authorization.split('Bearer ')[1];
+        const decodedToken = await authAdmin.verifyIdToken(idToken);
+        const uid = decodedToken.uid;
+        console.log(`Používateľ ${uid} úspešne overený.`);
+
+        console.log('Spracovávam telo požiadavky (req.json())...');
+        const { date, selections }: { date: string, selections: Selections } = await req.json();
+        console.log(`Dáta úspešne spracované. Dátum: ${date}, Výber:`, selections);
+        // --- KONIEC PRIDANEJ ČASTI ---
+
+        return NextResponse.json({ 
+            message: 'Test 3 (Auth & Body Parsing) prebehol úspešne.',
+            user: uid,
+            data: { date, selections }
+        });
 
     } catch (error: any) {
-        console.error('--- KRITICKÁ CHYBA POČAS TESTU 2 (INITIALIZATION) ---', error);
-        return NextResponse.json({ error: 'Chyba počas inicializácie služieb.' }, { status: 500 });
+        console.error('--- KRITICKÁ CHYBA POČAS TESTU 3 ---', error);
+        return NextResponse.json({ error: 'Chyba počas overovania používateľa alebo spracovania dát.' }, { status: 500 });
     }
 }
