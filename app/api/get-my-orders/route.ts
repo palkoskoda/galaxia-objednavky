@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         // Načítanie objednávok
         const records = await base('Objednavky')
             .select({
-                filterByFormula: `{FirebaseUID} = '${uid}'`,
+                filterByFormula: `{firebaseuid} = '${uid}'`,
                 sort: [{ field: 'Datum', direction: 'desc' }],
             })
             .all();

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         if (menuOptions.length === 0) {
             console.log(`User ${uid} requested to cancel order for date: ${date}`);
             const recordsToDelete = await base('Objednavky').select({
-                filterByFormula: `AND({FirebaseUID} = '${uid}', {DatumObjednavky} = '${date}')`
+                filterByFormula: `AND({firebaseuid} = '${uid}', {DatumObjednavky} = '${date}')`
             }).all();
             
             if (recordsToDelete.length > 0) {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
         console.log(`Fetching user data for UID: ${uid}`);
         const users = await base('Pouzivatelia').select({
-            filterByFormula: `{FirebaseUID} = '${uid}'`,
+            filterByFormula: `{firebaseuid} = '${uid}'`,
             maxRecords: 1
         }).firstPage();
 
@@ -80,12 +80,12 @@ export async function POST(req: NextRequest) {
 
         console.log('Performing UPSERT logic...');
         const existingOrders = await base('Objednavky').select({
-            filterByFormula: `AND({FirebaseUID} = '${uid}', {DatumObjednavky} = '${date}')`,
+            filterByFormula: `AND({firebaseuid} = '${uid}', {DatumObjednavky} = '${date}')`,
             maxRecords: 1,
         }).firstPage();
 
         const orderData = {
-            'FirebaseUID': uid,
+            'firebaseuid': uid,
             'DatumObjednavky': date,
             'ObjednanePolozky': JSON.stringify(selections, null, 2),
             'CelkovaCena': totalPrice,
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
         // --- Zvyšok logiky (tu musí byť chyba) ---
         console.log(`[KROK 1] Načítavam dáta používateľa pre UID: ${uid}`);
         const users = await base('Pouzivatelia').select({
-            filterByFormula: `{FirebaseUID} = '${uid}'`,
+            filterByFormula: `{firebaseuid} = '${uid}'`,
             maxRecords: 1
         }).firstPage();
         
@@ -168,13 +168,13 @@ export async function POST(req: NextRequest) {
 
         console.log(`[KROK 4] Cena vypočítaná: ${totalPrice}. Hľadám existujúce objednávky.`);
         const existingOrders = await base('Objednavky').select({
-            filterByFormula: `AND({FirebaseUID} = '${uid}', {DatumObjednavky} = '${date}')`,
+            filterByFormula: `AND({firebaseuid} = '${uid}', {DatumObjednavky} = '${date}')`,
             maxRecords: 1,
         }).firstPage();
         
         console.log(`[KROK 5] Nájdených ${existingOrders.length} existujúcich objednávok. Pripravujem dáta na zápis.`);
         const orderData = {
-            'FirebaseUID': uid,
+            'firebaseuid': uid,
             'DatumObjednavky': date,
             'ObjednanePolozky': JSON.stringify(selections, null, 2),
             'CelkovaCena': totalPrice,
