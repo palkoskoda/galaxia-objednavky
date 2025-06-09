@@ -32,20 +32,125 @@ body {
     padding: 1rem 2rem;
 }
 
-/* --- Hlavička (Header) --- */
+/* --- Nové štýly pre Hlavičku (Header) --- */
 .app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
     background-color: white;
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 2rem;
+    border-bottom: 1px solid #e0e0e0;
+    flex-wrap: wrap; /* Umožní zalomenie na menších obrazovkách */
+    gap: 1rem;
 }
 
-.app-header a {
+.logo a {
+    font-weight: bold;
+    font-size: 1.6rem;
+    color: #1a1a1a;
     text-decoration: none;
+}
+
+.main-navigation {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.main-navigation a {
+    text-decoration: none;
+    color: #555;
+    font-weight: 500;
+    padding: 0.5rem 0;
+    position: relative;
+    transition: color 0.2s ease-in-out;
+}
+
+.main-navigation a:hover {
     color: #0070f3;
+}
+
+/* Podčiarknutie pri hoveri */
+.main-navigation a::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 2px;
+    bottom: 0;
+    left: 0;
+    background-color: #0070f3;
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+}
+
+.main-navigation a:hover::after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+}
+
+/* Špeciálny štýl pre admin odkaz */
+.admin-link {
+    color: #d9480f !important; /* Dôležitá farba */
+    font-weight: bold !important;
+}
+.admin-link:hover {
+    color: #c9400a !important;
+}
+.admin-link::after {
+    background-color: #d9480f !important;
+}
+
+.user-section {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.welcome-message {
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.auth-links {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.logout-button {
+    background: none;
+    border: 1px solid #ccc;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.logout-button:hover {
+    background-color: #f4f4f9;
+    border-color: #999;
+}
+
+/* --- Responzivita pre hlavičku --- */
+@media (max-width: 768px) {
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .main-navigation {
+        width: 100%;
+        border-top: 1px solid #eee;
+        border-bottom: 1px solid #eee;
+        padding: 0.5rem 0;
+        margin-top: 0.5rem;
+        justify-content: space-around;
+    }
+
+    .user-section {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+    }
 }
 
 .logo a {
@@ -54,11 +159,6 @@ body {
     color: #333;
 }
 
-.user-nav {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem; /* Vytvorí medzeru medzi prvkami */
-}
 
 .logout-button {
     background: none;
