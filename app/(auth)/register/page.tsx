@@ -2,45 +2,55 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import Link from 'next/link';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function RegisterPage() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [formData, setFormData] = useState({
+        meno: '',
+        email: '',
+        password: '',
+        adresa: '',
+        telefon: ''
+    });
     const [error, setError] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false); // Pridáme stav pre načítavanie
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const router = useRouter();
 
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
+    };
+
     const handleRegister = async (e: React.FormEvent) => {
-        // ----- TOTO JE KĽÚČOVÝ RIADOK -----
-        e.preventDefault(); 
-        // ---------------------------------
-        
+        e.preventDefault();
         setError(null);
         setIsSubmitting(true);
 
-        // Validácia hesla (príklad)
-        if (password.length < 6) {
-            setError("Heslo musí mať aspoň 6 znakov.");
-            setIsSubmitting(false);
-            return;
-        }
-
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            // Po úspešnej registrácii presmerujeme používateľa na hlavnú stránku.
-            // Ideálne by sme mali vytvoriť záznam v DB tu, ale to riešime neskôr.
-            alert('Registrácia prebehla úspešne! Budete presmerovaný.');
-            router.push('/');
-        } catch (error: any) {
-            // Preložíme Firebase chyby do zrozumiteľnejšej podoby
-            if (error.code === 'auth/email-already-in-use') {
-                setError('Tento email je už zaregistrovaný.');
-            } else {
-                setError('Nastala chyba pri registrácii. Skúste to znova.');
+            // Voláme náš nový backendový endpoint
+            const response = await fetch('/api/register-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Neznáma chyba servera.');
             }
+
+            // Po úspešnej registrácii používateľa automaticky prihlásime
+            alert('Registrácia prebehla úspešne! Budete automaticky prihlásený.');
+            await signInWithEmailAndPassword(auth, formData.email, formData.password);
+            router.push('/'); // a presmerujeme na hlavnú stránku
+
+        } catch (error: any) {
+            setError(error.message);
             console.error("Chyba pri registrácii:", error);
         } finally {
             setIsSubmitting(false);
@@ -49,26 +59,16 @@ export default function RegisterPage() {
 
     return (
         <div className="container auth-page">
-            <h1>Registrácia</h1>
+            <h1>Registrácia Nového Účtu</h1>
             <form onSubmit={handleRegister}>
-                <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email"
-                    required
-                    disabled={isSubmitting}
-                />
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Heslo (min. 6 znakov)"
-                    required
-                    disabled={isSubmitting}
-                />
+                <input name="meno" type="text" value={formData.meno} onChange={handleChange} placeholder="Meno a Priezvisko" required disabled={isSubmitting} />
+                <input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Email" required disabled={isSubmitting} />
+                <input name="password" type="password" value={formData.password} onChange={handleChange} placeholder="Heslo (min. 6 znakov)" required disabled={isSubmitting} />
+                <input name="adresa" type="text" value={formData.adresa} onChange={handleChange} placeholder="Adresa doručenia (Ulica, Číslo, Mesto, PSČ)" disabled={isSubmitting} />
+                <input name="telefon" type="tel" value={formData.telefon} onChange={handleChange} placeholder="Telefónne číslo" disabled={isSubmitting} />
+                
                 <button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Registrujem...' : 'Registrovať sa'}
+                    {isSubmitting ? 'Registrujem...' : 'Vytvoriť Účet'}
                 </button>
                 {error && <p className="error-message">{error}</p>}
             </form>
