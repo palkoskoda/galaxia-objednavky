@@ -137,10 +137,10 @@ export async function POST(req: NextRequest) {
 
         // --- Zvyšok logiky (tu musí byť chyba) ---
         console.log(`[KROK 1] Načítavam dáta používateľa pre UID: ${uid}`);
-        const users = await base('Pouzivatelia').select({
-            filterByFormula: `{firebaseuid} = '${uid}'`,
-            maxRecords: 1
-        }).firstPage();
+const users = await base('Pouzivatelia').select({
+  filterByFormula: `({Firebase UID} = "${uid}")`, // presný názov + úvodzovky
+  maxRecords: 1
+}).firstPage();
         
         const userData: UserData = {
             typCeny: users.length > 0 ? (users[0].fields.TypCeny as UserData['typCeny'] || 'Štandard') : 'Štandard'
