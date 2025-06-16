@@ -1,14 +1,13 @@
 'use client';
 
-// === ZAČIATOK OPRAVY: TOTO SÚ CHÝBAJÚCE IMPORTY ===
 import { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
-// === KONIEC OPRAVY ===
+import styles from './HomePage.module.css'; // Importujeme naše štýly
 
-// --- Typy pre dáta ---
+// --- Typové definície pre dáta ---
 type Meal = {
-  id: string; // Record ID z MenuPolozky
-  dennemenu_id: string; // Record ID z DenneMenu
+  id: string; // Record ID z tabuľky MenuPolozky
+  dennemenu_id: string; // Record ID z tabuľky DenneMenu (toto je dôležité!)
   typ: string; 
   nazov: string;
   popis: string;
@@ -27,14 +26,14 @@ type Selections = {
 };
 
 export default function HomePage() {
-  // --- Stavy komponentu ---
+  // --- Stavy komponentu (premenné pre 'menu', 'selections', atď.) ---
   const { user } = useAuth();
   const [menu, setMenu] = useState<MenuByDate>({});
   const [selections, setSelections] = useState<Selections>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Logika na načítanie menu ---
+  // --- Logika na načítanie menu po otvorení stránky ---
   useEffect(() => {
     const fetchMenu = async () => {
       try {
@@ -52,9 +51,8 @@ export default function HomePage() {
     fetchMenu();
   }, []);
 
-  // --- Funkcie na interakciu ---
+  // --- Funkcie na prácu s "košíkom" a odoslanie ---
   const handleQuantityChange = (date: string, dennemenu_id: string, delta: number) => {
-    // Oprava chyby 'implicitly has an 'any' type' pridaním typu pre 'prev'
     setSelections((prev: Selections) => {
       const newSelections = { ...prev };
       if (!newSelections[date]) newSelections[date] = {};
@@ -76,6 +74,7 @@ export default function HomePage() {
     const items = selections[date];
     if (!items || Object.keys(items).length === 0) return alert("Košík je prázdny.");
     
+    // Pripravíme dáta pre API (kľúč z 'selections' je naše 'menuId')
     const orderItems = Object.entries(items).map(([menuId, pocet]) => ({ menuId, pocet }));
 
     try {
@@ -89,38 +88,40 @@ export default function HomePage() {
       if (!response.ok) throw new Error(result.message || 'Neznáma chyba');
       
       alert('Objednávka úspešne odoslaná!');
-      // Vyčistí košík pre daný deň po úspešnom odoslaní
-      setSelections(prev => ({ ...prev, [date]: {} }));
+      setSelections(prev => ({ ...prev, [date]: {} })); // Vyčistí košík
 
     } catch (error: any) {
         alert(`Chyba: ${error.message}`);
     }
   };
 
-  // --- Vykreslenie (JSX) ---
-  // TÚTO ČASŤ SI PRISPÔSOB PODĽA SVOJHO DIZAJNU
-  if (isLoading) return <div>Načítavam...</div>;
-  if (error) return <div>Chyba: {error}</div>;
+  // --- Vykreslenie stránky (HTML a dizajn) ---
+  if (isLoading) return <div className={styles.container}>Načítavam...</div>;
+  if (error) return <div className={styles.container}>Chyba: {error}</div>;
 
   return (
-    <div>
+    <div className={styles.container}>
       <h1>Jedálny lístok</h1>
       {Object.keys(menu).length > 0 ? Object.entries(menu).map(([date, meals]) => (
-        <div key={date} className="menu-day-container"> {/* Použi svoje CSS triedy */}
-          <h2>{new Date(date).toLocaleDateString('sk-SK')}</h2>
+        <div key={date} className={styles.dayBlock}>
+          <h2 className={styles.dayTitle}>{new Date(date).toLocaleDateString('sk-SK', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+          
           {meals.map((meal) => (
-            <div key={meal.id} className="meal-item"> {/* Použi svoje CSS triedy */}
-              <h4>{meal.nazov}</h4>
-              <p>{meal.popis}</p>
+            <div key={meal.id} className={styles.mealItem}>
+              <div className={styles.mealInfo}>
+                <span className={styles.mealName}>{meal.nazov}</span>
+                <span className={styles.mealDescription}>{meal.popis}</span>
+              </div>
               
-              <div className="quantity-selector"> {/* Použi svoje CSS triedy */}
-                <button onClick={() => handleQuantityChange(date, meal.dennemenu_id, -1)}>-</button>
-                <span>{selections[date]?.[meal.dennemenu_id] || 0}</span>
-                <button onClick={() => handleQuantityChange(date, meal.dennemenu_id, 1)}>+</button>
+              <div className={styles.quantitySelector}>
+                <button className={styles.quantityButton} onClick={() => handleQuantityChange(date, meal.dennemenu_id, -1)}>-</button>
+                <span className={styles.quantityDisplay}>{selections[date]?.[meal.dennemenu_id] || 0}</span>
+                <button className={styles.quantityButton} onClick={() => handleQuantityChange(date, meal.dennemenu_id, 1)}>+</button>
               </div>
             </div>
           ))}
-          <button onClick={() => handleOrderSubmit(date)} className="order-button">
+          
+          <button onClick={() => handleOrderSubmit(date)} className={styles.submitButton}>
             Odoslať objednávku na tento deň
           </button>
         </div>
