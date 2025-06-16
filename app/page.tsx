@@ -21,9 +21,10 @@ type MenuByDate = {
 
 type Selections = {
   [date: string]: {
-    [dennemenu_id: string]: number; 
+    [mealId: string]: number; // Kľúč je teraz 'mealId', unikátne ID z MenuPolozky
   };
 };
+
 
 export default function HomePage() {
   // --- Stavy komponentu (premenné pre 'menu', 'selections', atď.) ---
@@ -52,18 +53,19 @@ export default function HomePage() {
   }, []);
 
   // --- Funkcie na prácu s "košíkom" a odoslanie ---
-  const handleQuantityChange = (date: string, dennemenu_id: string, delta: number) => {
+  const handleQuantityChange = (date: string, mealId: string, delta: number) => {
     setSelections((prev: Selections) => {
       const newSelections = { ...prev };
       if (!newSelections[date]) newSelections[date] = {};
       
-      const currentQuantity = newSelections[date][dennemenu_id] || 0;
+      // Pracujeme s unikátnym mealId
+      const currentQuantity = newSelections[date][mealId] || 0;
       const newQuantity = Math.max(0, currentQuantity + delta);
 
       if (newQuantity > 0) {
-        newSelections[date][dennemenu_id] = newQuantity;
+        newSelections[date][mealId] = newQuantity;
       } else {
-        delete newSelections[date][dennemenu_id];
+        delete newSelections[date][mealId];
       }
       return newSelections;
     });
@@ -71,11 +73,19 @@ export default function HomePage() {
 
   const handleOrderSubmit = async (date: string) => {
     if (!user) return alert("Musíte byť prihlásený.");
-    const items = selections[date];
-    if (!items || Object.keys(items).length === 0) return alert("Košík je prázdny.");
+
     
-    // Pripravíme dáta pre API (kľúč z 'selections' je naše 'menuId')
-    const orderItems = Object.entries(items).map(([menuId, pocet]) => ({ menuId, pocet }));
+  // Pripravíme dáta pre API (kľúč z 'selections' je naše 'menuId')
+  const orderItems = Object.entries(selections[date] || {}).map(([mealId, pocet]) => {
+    // Nájdeme celé jedlo v našom načítanom menu, aby sme získali jeho názov
+    const mealInfo = menu[date].find(m => m.id === mealId);
+    return {
+      // Posielame ID z DenneMenu, nie z MenuPolozky, lebo tak to očakáva API
+      menuId: mealInfo?.dennemenu_id || '', 
+      pocet,
+      nazov: mealInfo?.nazov || 'Názov neznámy',
+    };
+  });
 
     try {
       const idToken = await user.getIdToken();
@@ -108,17 +118,15 @@ export default function HomePage() {
           
           {meals.map((meal) => (
             <div key={meal.id} className="mealItem">
-              <div className="mealInfo">
-                <span className="mealName">{meal.nazov}</span>
-                <span className="mealDescription">{meal.popis}</span>
-              </div>
-              
-              <div className="quantitySelector">
-                <button className="quantityButton" onClick={() => handleQuantityChange(date, meal.dennemenu_id, -1)}>-</button>
-                <span className="quantityDisplay">{selections[date]?.[meal.dennemenu_id] || 0}</span>
-                <button className="quantityButton" onClick={() => handleQuantityChange(date, meal.dennemenu_id, 1)}>+</button>
-              </div>
-            </div>
+  {/* ... informácie o jedle ... */}
+  
+  <div className="quantitySelector">
+    {/* === ZMENA JE TU: Používame meal.id namiesto meal.dennemenu_id === */}
+    <button className="quantityButton" onClick={() => handleQuantityChange(date, meal.id, -1)}>-</button>
+    <span className="quantityDisplay">{selections[date]?.[meal.id] || 0}</span>
+    <button className="quantityButton" onClick={() => handleQuantityChange(date, meal.id, 1)}>+</button>
+  </div>
+</div>
           ))}
           
           <button onClick={() => handleOrderSubmit(date)} className="submitButton">

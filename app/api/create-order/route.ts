@@ -5,8 +5,8 @@ import { verifyUser } from "@/lib/firebase-admin";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    // Frontend posiela pole položiek, napr. [{ menuId, pocet }, ...]
-    const { orderItems }: { orderItems: { menuId: string, pocet: number }[] } = body;
+    // Frontend teraz posiela aj názov: [{ menuId, pocet, nazov }]
+    const { orderItems }: { orderItems: { menuId: string, pocet: number, nazov: string }[] } = body;
 
     if (!orderItems || orderItems.length === 0) {
       return NextResponse.json({ message: "Order cannot be empty" }, { status: 400 });
@@ -39,11 +39,16 @@ export async function POST(request: Request) {
     console.log(`[create-order] Vytvorená hlavná objednávka s ID: ${orderRecord.id}`);
 
     // KROK 3: Vytvorenie jednotlivých záznamov v tabuľke 'ObjednanePolozky'
-    const itemsToCreate = orderItems.map(item => ({
+  const itemsToCreate = orderItems.map(item => ({
       fields: {
-        ObjednavkaID: [orderRecord.id], // Prepojenie na hlavnú objednávku
-        DenneMenuID: [item.menuId],   // Prepojenie na konkrétne jedlo
+        ObjednavkaID: [orderRecord.id],
+        // POZOR: Tu stále potrebujeme odkaz na DenneMenu, aby sme vedeli, z ktorého dňa jedlo je.
+        // Ak ste toto pole zmazali, vytvorte ho znova a prepojte na DenneMenu.
+        // Ak ste ho len premenovali, použite správny názov.
+        DenneMenuID: [item.menuId], // Predpokladáme, že menuId je ID z DenneMenu
         Pocet: item.pocet,
+        // === TOTO JE KĽÚČOVÁ ZMENA ===
+        NazovJedla: item.nazov, 
       }
     }));
 

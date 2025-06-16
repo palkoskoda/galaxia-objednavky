@@ -61,10 +61,11 @@ export async function GET(request: Request) {
             itemRecordIds.map(async (itemId) => {
               const itemRecord = await airtable("ObjednanePolozky").find(itemId);
               const denneMenuId = (itemRecord.fields.DenneMenuID as string[] | undefined)?.[0] ?? 'N/A';
-              return {
+                            return {
                 id: itemRecord.id,
                 pocet: (itemRecord.fields.Pocet as number) || 0,
-                nazov: `Položka ${denneMenuId}`,
+                // === ZMENA: Čítame priamo z poľa, ktoré sme si uložili ===
+                nazov: (itemRecord.fields.NazovJedla as string) || 'Názov chýba', 
               };
             })
           );
