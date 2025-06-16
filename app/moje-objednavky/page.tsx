@@ -1,102 +1,88 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
-// Nový typ pre objednávku, ktorý zodpovedá API
-interface Order {
-    id: string;
-    datum: string;
-    objednavka: Record<string, number>;
-    stav: string;
-    cena: number;
-}
+// Typy pre dáta, ktoré očakávame z API
+type OrderItem = {
+  id: string;
+  pocet: number;
+  nazov: string;
+};
 
-export default function MyOrdersPage() {
-    const { user, isLoading: isAuthLoading } = useAuth();
-    const router = useRouter();
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+type Order = {
+  id: string;
+  datum: string;
+  stav: string;
+  celkovaCena: number;
+  polozky: OrderItem[];
+};
 
-    useEffect(() => {
-        // Ak ešte prebieha autentifikácia, čakáme
-        if (isAuthLoading) {
-            return;
+export default function MojeObjednavkyPage() {
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Funkcia sa spustí, len ak je používateľ prihlásený
+    if (user) {
+      const fetchOrders = async () => {
+        try {
+          setIsLoading(true);
+          const idToken = await user.getIdToken();
+          const response = await fetch('/api/get-my-orders', {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error('Nepodarilo sa načítať objednávky.');
+          }
+
+          const data: Order[] = await response.json();
+          setOrders(data);
+
+        } catch (err: any) {
+          setError(err.message);
+        } finally {
+          setIsLoading(false);
         }
-        
-        // Ak používateľ nie je prihlásený, presmerujeme ho
-        if (!user) {
-            router.push('/login');
-            return;
-        }
-
-        const fetchOrders = async () => {
-            try {
-                const token = await user.getIdToken();
-                const response = await fetch('/api/get-my-orders', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Nepodarilo sa načítať objednávky.');
-                }
-
-                const data: Order[] = await response.json();
-                setOrders(data);
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchOrders();
-    }, [user, isAuthLoading, router]);
-
-    if (isLoading || isAuthLoading) {
-        return <div className="container"><h1>Načítavam vaše objednávky...</h1></div>;
+      };
+      
+      fetchOrders();
+    } else {
+      // Ak používateľ nie je prihlásený, nenastavujeme loading
+      setIsLoading(false);
     }
-    
-    if (error) {
-        return <div className="container"><h1>Chyba</h1><p>{error}</p></div>;
-    }
+  }, [user]); // Spustí sa vždy, keď sa zmení stav prihlásenia
 
-    return (
-        <main className="container">
-            <h1>Moje Objednávky</h1>
-            {orders.length === 0 ? (
-                <p>Zatiaľ nemáte žiadne objednávky. <Link href="/">Vytvoriť novú objednávku.</Link></p>
-            ) : (
-                <table className="orders-table">
-                    <thead>
-                        <tr>
-                            <th>Dátum</th>
-                            <th>Objednávka</th>
-                            <th>Cena</th>
-                            <th>Stav</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {orders.map(order => (
-                            <tr key={order.id}>
-                                <td>{new Date(order.datum).toLocaleDateString('sk-SK')}</td>
-                                <td>
-                                    {Object.entries(order.objednavka)
-                                        .map(([meal, count]) => `${meal}: ${count}ks`)
-                                        .join(', ')}
-                                </td>
-                                <td>{order.cena?.toFixed(2)} €</td>
-                                <td>{order.stav}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
-        </main>
-    );
+  if (isLoading) return <p>Načítavam vaše objednávky...</p>;
+  if (error) return <p>Chyba: {error}</p>;
+  if (!user) return <p>Pre zobrazenie objednávok sa musíte prihlásiť.</p>;
+
+  return (
+    <div>
+      <h1>Moje Objednávky</h1>
+      {orders.length > 0 ? (
+        orders.map((order) => (
+          <div key={order.id} style={{ border: '1px solid #eee', padding: '1rem', marginBottom: '1rem' }}>
+            <h3>Objednávka z dňa: {new Date(order.datum).toLocaleDateString('sk-SK')}</h3>
+            <p>Stav: {order.stav}</p>
+            <ul>
+              {/* Tu bezpečne mapujeme pole 'polozky', nie 'Object.entries' */}
+              {order.polozky.map(item => (
+                <li key={item.id}>
+                  {item.pocet}x {item.nazov}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      ) : (
+        <p>Zatiaľ nemáte žiadne objednávky.</p>
+      )}
+    </div>
+  );
 }
