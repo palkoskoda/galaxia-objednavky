@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
+/* import { NextResponse, NextRequest } from 'next/server';
 import Airtable from 'airtable';
 import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 import { checkDeadlines } from '@/utils/deadlines';
@@ -70,4 +70,79 @@ export async function POST(req: NextRequest) {
         console.error('--- KRITICKÁ CHYBA ---', error);
         return NextResponse.json({ error: 'Chyba na serveri.' }, { status: 500 });
     }
-}
+} */
+
+   import { NextResponse } from "next/server";
+import { airtable, getMinifiedRecords } from "@/lib/airtable";
+import { verifyUser } from "@/lib/firebase-admin";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { orderItems } = body;
+
+    // KROK 1: Overenie používateľa cez Firebase
+    const decodedToken = await verifyUser(request);
+    if (!decodedToken) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const { uid } = decodedToken;
+    console.log(`[create-order] KROK 1: User verified. UID: ${uid}`);
+
+    // KROK 2: Nájdenie Airtable záznamu používateľa a získanie jeho číselného ID
+    const userRecords = await airtable("Pouzivatelia")
+      .select({
+        filterByFormula: `{FirebaseUID} = '${uid}'`,
+        maxRecords: 1,
+      })
+      .firstPage();
+
+    if (!userRecords || userRecords.length === 0) {
+      return NextResponse.json(
+        { message: "User not found in Airtable" },
+        { status: 404 }
+      );
+    }
+    
+    // Získame naše nové číselné ID
+    const pouzivatelID = userRecords[0].get("PouzivatelID") as number;
+    console.log(`[create-order] KROK 2: Nájdené PouzivatelID: ${pouzivatelID}`);
+
+    if (!pouzivatelID) {
+        return NextResponse.json(
+            { message: "PouzivatelID is missing for this user in Airtable." },
+            { status: 500 }
+        );
+    }
+    
+    // KROK 3: Vytvorenie záznamov o objednávke v Airtable
+    const recordsToCreate = orderItems.map((item: any) => ({
+      fields: {
+        DatumObjednavky: new Date().toISOString().split("T")[0],
+        Pocet: item.quantity,
+        // Dôležitá zmena: Ukladáme číselné ID
+        PouzivatelID: pouzivatelID, 
+        // Prepojíme aj konkrétne menu, ak používame linkované záznamy
+        DenneMenu: [item.menuId], // menuId je Airtable Record ID pre položku v DenneMenu
+      },
+    }));
+
+    const createdRecords = await airtable("Objednavky").create(recordsToCreate);
+    console.log(`[create-order] KROK 3: Úspešne vytvorených ${createdRecords.length} záznamov.`);
+
+    return NextResponse.json({
+      message: "Order created successfully",
+      records: getMinifiedRecords(createdRecords),
+    }, { status: 200 });
+
+  } catch (error) {
+    console.error("[API create-order] Error:", error);
+    return NextResponse.json(
+      { message: "Error creating order", error },
+      { status: 500 }
+    );
+  }
+} 

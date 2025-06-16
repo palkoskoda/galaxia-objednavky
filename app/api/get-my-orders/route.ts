@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
+/* import { NextResponse, NextRequest } from 'next/server';
 import Airtable, { FieldSet } from 'airtable';
 import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 
@@ -77,4 +77,93 @@ export async function GET(req: NextRequest) {
         console.error('--- KRITICKÁ CHYBA v /api/get-my-orders ---', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
+} */
+
+    import { NextResponse } from "next/server";
+import { airtable, getMinifiedRecords } from "@/lib/airtable";
+import { verifyUser } from "@/lib/firebase-admin";
+
+export async function GET(request: Request) {
+  try {
+    // KROK 1: Overenie používateľa
+    const decodedToken = await verifyUser(request);
+    if (!decodedToken) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const { uid } = decodedToken;
+    console.log(`[get-my-orders] KROK 1: User verified. UID: ${uid}`);
+
+    // KROK 2: Nájdenie Airtable záznamu používateľa a získanie jeho číselného ID
+    const userRecords = await airtable("Pouzivatelia")
+      .select({
+        filterByFormula: `{FirebaseUID} = '${uid}'`,
+        maxRecords: 1,
+      })
+      .firstPage();
+
+    if (!userRecords || userRecords.length === 0) {
+      return NextResponse.json(
+        { message: "User not found in Airtable" },
+        { status: 404 }
+      );
+    }
+    
+    const pouzivatelID = userRecords[0].get("PouzivatelID") as number;
+    console.log(`[get-my-orders] KROK 2 - ÚSPECH: Nájdené PouzivatelID: ${pouzivatelID}`);
+
+    if (!pouzivatelID) {
+      console.log(`[get-my-orders] KROK 2 - CHYBA: PouzivatelID pre UID ${uid} neexistuje v Airtable.`);
+      return NextResponse.json(
+        { message: "User record is incomplete" },
+        { status: 500 }
+      );
+    }
+
+    // KROK 3: Hľadanie objednávok podľa číselného PouzivatelID
+    console.log(`[get-my-orders] KROK 3: Hľadám objednávky pre PouzivatelID = ${pouzivatelID}`);
+
+    const orderRecords = await airtable("Objednavky")
+      .select({
+        // TOTO JE KĽÚČOVÁ ZMENA!
+        // Filtrujeme podľa stĺpca "PouzivatelID" v tabuľke Objednavky
+        // a porovnávame ho s číselnou hodnotou, ktorú sme našli v KROKU 2.
+        filterByFormula: `{PouzivatelID} = ${pouzivatelID}`,
+        sort: [{ field: "DatumObjednavky", direction: "desc" }],
+      })
+      .all();
+      
+    if (!orderRecords || orderRecords.length === 0) {
+        console.log(`[get-my-orders] KROK 3 - VÝSLEDOK: Pre PouzivatelID ${pouzivatelID} neboli nájdené žiadne objednávky. Vraciam prázdne pole.`);
+        return NextResponse.json([], { status: 200 });
+    }
+
+    console.log(`[get-my-orders] KROK 3 - VÝSLEDOK: Nájdených ${orderRecords.length} objednávok.`);
+
+    // Spracovanie a vrátenie dát
+    const minifiedRecords = getMinifiedRecords(orderRecords);
+    // Tento krok je dôležitý na získanie názvov jedál z prepojenej tabuľky
+    const enhancedOrders = await Promise.all(minifiedRecords.map(async (order) => {
+        const menuRecordIds = order.fields.DenneMenu as string[];
+        if (!menuRecordIds || menuRecordIds.length === 0) {
+            return { ...order.fields, NazovJedla: "Neznáme jedlo" };
+        }
+        const menuRecord = await airtable('DenneMenu').find(menuRecordIds[0]);
+        return {
+            ...order.fields,
+            NazovJedla: menuRecord.fields.NazovLookup || 'Načítava sa...', // Predpokladáme, že máte lookup pole 'NazovLookup' v DenneMenu
+        };
+    }));
+
+    return NextResponse.json(enhancedOrders, { status: 200 });
+
+  } catch (error) {
+    console.error("[API get-my-orders] Error:", error);
+    return NextResponse.json(
+      { message: "Error fetching orders", error },
+      { status: 500 }
+    );
+  }
 }

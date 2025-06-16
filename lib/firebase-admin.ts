@@ -1,22 +1,44 @@
-import admin from 'firebase-admin';
+// Zmena 1: Odstránili sme { App } z importu. Už ho nepotrebujeme.
+import admin from "firebase-admin";
+import { DecodedIdToken } from "firebase-admin/auth";
 
-// Funkcia na zabezpečenie, že sa Firebase inicializuje len raz.
-function initializeFirebaseAdmin() {
-    if (!admin.apps.length) {
-        // Skontrolujeme, či premenná prostredia existuje, aby sme dostali lepšiu chybovú hlášku
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment variables.');
-        }
+// Konfigurácia pre Firebase Admin SDK z environment premenných
+const serviceAccount = JSON.parse(
+  process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+);
 
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
+// Zmena 2: Tu je kľúčová oprava. Správny typ je 'admin.app.App'.
+let firebaseAdminApp: admin.app.App;
 
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
-        console.log("Firebase Admin SDK initialized.");
-    }
-    return admin;
+// Zvyšok súboru je v poriadku a zostáva rovnaký
+if (!admin.apps.length) {
+  firebaseAdminApp = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+} else {
+  firebaseAdminApp = admin.app();
 }
 
-// Exportujeme funkciu, nie priamo inicializovanú inštanciu
-export { initializeFirebaseAdmin };
+export const adminAuth = firebaseAdminApp.auth();
+
+/**
+ * Overí JWT token z hlavičky 'Authorization' prichádzajúcej požiadavky.
+ * @param request - Objekt prichádzajúcej požiadavky (Request).
+ * @returns Dekódovaný token ak je platný, inak null.
+ */
+export const verifyUser = async (request: Request): Promise<DecodedIdToken | null> => {
+  const authHeader = request.headers.get("authorization");
+
+  if (authHeader?.startsWith("Bearer ")) {
+    const idToken = authHeader.split("Bearer ")[1];
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
+      return decodedToken;
+    } catch (error) {
+      console.error("Error verifying Firebase ID token:", error);
+      return null;
+    }
+  }
+
+  return null;
+};
