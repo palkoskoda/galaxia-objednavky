@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
-import styles from './HomePage.module.css'; // Importujeme naše štýly
+// import '@/globals.css'; // Importujeme naše štýly (global CSS should be imported in _app.tsx or layout.tsx)
 
 // --- Typové definície pre dáta ---
 type Meal = {
@@ -96,32 +96,32 @@ export default function HomePage() {
   };
 
   // --- Vykreslenie stránky (HTML a dizajn) ---
-  if (isLoading) return <div className={styles.container}>Načítavam...</div>;
-  if (error) return <div className={styles.container}>Chyba: {error}</div>;
+  if (isLoading) return <div className="container">Načítavam...</div>;
+  if (error) return <div className="container">Chyba: {error}</div>;
 
   return (
-    <div className={styles.container}>
+    <div className="container">
       <h1>Jedálny lístok</h1>
       {Object.keys(menu).length > 0 ? Object.entries(menu).map(([date, meals]) => (
-        <div key={date} className={styles.dayBlock}>
-          <h2 className={styles.dayTitle}>{new Date(date).toLocaleDateString('sk-SK', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+        <div key={date} className="dayBlock">
+          <h2 className="dayTitle">{new Date(date).toLocaleDateString('sk-SK', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
           
           {meals.map((meal) => (
-            <div key={meal.id} className={styles.mealItem}>
-              <div className={styles.mealInfo}>
-                <span className={styles.mealName}>{meal.nazov}</span>
-                <span className={styles.mealDescription}>{meal.popis}</span>
+            <div key={meal.id} className="mealItem">
+              <div className="mealInfo">
+                <span className="mealName">{meal.nazov}</span>
+                <span className="mealDescription">{meal.popis}</span>
               </div>
               
-              <div className={styles.quantitySelector}>
-                <button className={styles.quantityButton} onClick={() => handleQuantityChange(date, meal.dennemenu_id, -1)}>-</button>
-                <span className={styles.quantityDisplay}>{selections[date]?.[meal.dennemenu_id] || 0}</span>
-                <button className={styles.quantityButton} onClick={() => handleQuantityChange(date, meal.dennemenu_id, 1)}>+</button>
+              <div className="quantitySelector">
+                <button className="quantityButton" onClick={() => handleQuantityChange(date, meal.dennemenu_id, -1)}>-</button>
+                <span className="quantityDisplay">{selections[date]?.[meal.dennemenu_id] || 0}</span>
+                <button className="quantityButton" onClick={() => handleQuantityChange(date, meal.dennemenu_id, 1)}>+</button>
               </div>
             </div>
           ))}
           
-          <button onClick={() => handleOrderSubmit(date)} className={styles.submitButton}>
+          <button onClick={() => handleOrderSubmit(date)} className="submitButton">
             Odoslať objednávku na tento deň
           </button>
         </div>
